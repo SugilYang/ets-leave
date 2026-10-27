@@ -217,5 +217,43 @@ def main():
     save_seen(seen, today)
 
 
+RUN_AT = (6, 0)            # 매일 06:00
+LAST_FILE = "last_run.txt"
+
+
+def run_once():
+    try:
+        main()
+    except SystemExit as ex:
+        log(f"(종료 코드 {ex.code}) 다음 실행 때 다시 시도합니다.")
+    except Exception as ex:
+        log(f"오류: {ex!r} — 다음 실행 때 다시 시도합니다.")
+
+
+def loop():
+    """창을 켜 두면 매일 06:00 에 실행. 켠 날 아직 안 돌았으면 바로 한 번 실행."""
+    import time
+    log("연차 자동반영 대기 중 — 이 창을 닫으면 멈춥니다. (매일 06:00 실행)")
+    while True:
+        today = datetime.now(KST).date().isoformat()
+        try:
+            last = open(LAST_FILE, encoding="utf-8").read().strip()
+        except Exception:
+            last = ""
+        if last != today:
+            run_once()
+            with open(LAST_FILE, "w", encoding="utf-8") as f:
+                f.write(today)
+        now = datetime.now(KST)
+        nxt = now.replace(hour=RUN_AT[0], minute=RUN_AT[1], second=0, microsecond=0)
+        if nxt <= now:
+            nxt += timedelta(days=1)
+        log(f"다음 실행: {nxt:%m/%d %H:%M}")
+        time.sleep(max(60, (nxt - now).total_seconds()))
+
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "once":
+        main()
+    else:
+        loop()

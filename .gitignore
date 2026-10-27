@@ -3,3 +3,4 @@ seen_docs.json
 logs/
 debug/
 __pycache__/
+last_run.txt
