@@ -2,7 +2,7 @@
 """
 다우오피스 휴가신청서 → 실적공수 앱 연차 자동 반영
 ================================================
-매일 06:00(KST) GitHub Actions 가 실행.
+매일 06:00(KST) 사내 서버 PC 작업 스케줄러가 실행.
   1. GAS 에서 공수 입력 대상자 명단을 받는다 (조직도 − 제외자)
   2. 다우에 로그인해 '휴가 신청서' 통합검색 → 대상자가 기안한 문서만 연다
      - 결재 완료 문서(문서번호 있음)는 seen_docs.json 에 저장해 다음 날 다시 열지 않는다
@@ -10,7 +10,8 @@
   3. 어제 ~ 2주 뒤 범위의 휴가일을 날짜별로 풀어 GAS(leaveSync) 에 전송
      → GAS 가 '연차' 공수 행을 넣고 관리자에게 다우 알림
 
-환경변수(GitHub Secrets): DAOU_URL, DAOU_ID, DAOU_PW, GAS_URL, LEAVE_TOKEN
+설정값은 같은 폴더의 .env 파일에서 읽는다: DAOU_URL, DAOU_ID, DAOU_PW, GAS_URL, LEAVE_TOKEN
+(사내 서버 PC 의 작업 스케줄러로 매일 06:00 실행. GitHub 서버는 다우 해외 IP 차단으로 사용 불가)
 파싱 로직은 근태 자동화의 daou.py 를 그대로 사용.
 """
 import os, sys, json
@@ -31,14 +32,35 @@ SLOT = {"startQuarter1": "오전前", "startQuarter2": "오전後", "startQuarte
 HOURS = {"연차": 8, "오전반차": 4, "오후반차": 4, "오전반반차": 2, "오후반반차": 2}
 
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+os.chdir(HERE)                       # seen_docs.json·debug 폴더를 스크립트 옆에 둔다
+
+
+def load_dotenv():
+    """같은 폴더의 .env (KEY=VALUE 한 줄씩) 를 환경변수로 올린다. 이미 있는 값은 덮지 않음"""
+    path = os.path.join(HERE, ".env")
+    if not os.path.exists(path):
+        return
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+load_dotenv()
+
+
 def log(*a):
-    print(*a, flush=True)
+    print(datetime.now(KST).strftime("%H:%M:%S"), *a, flush=True)
 
 
 def env(k):
     v = os.environ.get(k, "").strip()
     if not v:
-        log(f"환경변수 {k} 가 없습니다. GitHub Secrets 를 확인하세요.")
+        log(f".env 에 {k} 값이 없습니다.")
         sys.exit(2)
     return v
 

@@ -1,0 +1,5 @@
+.env
+seen_docs.json
+logs/
+debug/
+__pycache__/
