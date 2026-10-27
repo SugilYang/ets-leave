@@ -23,8 +23,9 @@ from playwright.sync_api import sync_playwright
 from daou import DaouBrowser, parse_search, parse_leave, norm, FORM_LEAVE, REJECT_STATUS
 
 SEEN_FILE = "seen_docs.json"
-SEARCH_DAYS = 14          # 최근 N일 기안분만 후보로
-WINDOW_BACK, WINDOW_FWD = 1, 14   # 어제 ~ 2주 뒤
+SEARCH_DAYS = 45          # 최근 N일 기안분을 후보로 (3주 전 휴가도 그보다 먼저 기안됐을 수 있음)
+WINDOW_BACK, WINDOW_FWD = 21, 14  # 3주 전 ~ 2주 뒤 (열려 있는 주 전부. 결재 상신된 주는 GAS 가 건너뜀)
+MAX_PAGES = 5             # 검색 결과 100건 단위로 최대 N페이지
 KST = timezone(timedelta(hours=9))
 
 SLOT = {"startQuarter1": "오전前", "startQuarter2": "오전後", "startQuarter3": "오후前", "startQuarter4": "오후後",
@@ -163,8 +164,15 @@ def main():
             browser.close(); sys.exit(4)
 
         url = br._search_url("휴가 신청서")
-        page.goto(url, wait_until="domcontentloaded"); br._wait(2500)
-        rows = parse_search(page.content())
+        rows = []
+        for pg in range(MAX_PAGES):                      # 100건씩 페이지를 넘기며 기안일이 since 이전이 나올 때까지
+            page.goto(url.replace("page=0", f"page={pg}"), wait_until="domcontentloaded"); br._wait(2500)
+            got = parse_search(page.content())
+            for g in got:
+                g["_pg"] = pg                            # 어느 페이지에 있던 행인지 (열 때 그 페이지로 이동)
+            rows += got
+            if len(got) < 100 or (got[-1]["drafted"] and got[-1]["drafted"] < since):
+                break
         cands = [r for r in rows
                  if r["form_norm"] == FORM_LEAVE
                  and not any(k in r["status"] for k in REJECT_STATUS)
@@ -175,14 +183,15 @@ def main():
         for r in cands:
             if r["doc_no"] and r["doc_no"] in seen:
                 continue                                   # 이미 본 완료 문서
+            purl = url.replace("page=0", f"page={r.get('_pg', 0)}")
+            page.goto(purl, wait_until="domcontentloaded"); br._wait(2000)
             html, checked = br._open_doc(r)
             if html is None and r["doc_no"]:
                 # 문서번호로 못 찾으면 제목·기안자로 한 번 더
-                page.goto(url, wait_until="domcontentloaded"); br._wait(2000)
+                page.goto(purl, wait_until="domcontentloaded"); br._wait(2000)
                 html, checked = br._open_doc(dict(r, doc_no=""))
             if html is None:
                 log(f"  (클릭 실패: {r['drafter']} {r['drafted']})")
-                page.goto(url, wait_until="domcontentloaded"); br._wait(2000)
                 continue
             opened += 1
             try:
@@ -195,7 +204,6 @@ def main():
                     seen[r["doc_no"]] = rec                # 완료 문서만 기억
                 else:
                     new_recs.append(rec)                   # 진행중은 이번 실행에만 사용
-            page.goto(url, wait_until="domcontentloaded"); br._wait(2000)
         browser.close()
 
     log(f"문서 열람 {opened}건 / 기억된 완료 문서 {len(seen)}건")
