@@ -176,6 +176,10 @@ def main():
             if r["doc_no"] and r["doc_no"] in seen:
                 continue                                   # 이미 본 완료 문서
             html, checked = br._open_doc(r)
+            if html is None and r["doc_no"]:
+                # 문서번호로 못 찾으면 제목·기안자로 한 번 더
+                page.goto(url, wait_until="domcontentloaded"); br._wait(2000)
+                html, checked = br._open_doc(dict(r, doc_no=""))
             if html is None:
                 log(f"  (클릭 실패: {r['drafter']} {r['drafted']})")
                 page.goto(url, wait_until="domcontentloaded"); br._wait(2000)
