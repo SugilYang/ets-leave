@@ -122,8 +122,20 @@ def main():
         br = DaouBrowser(page, base_url, today, log=log)
         if not br.login(uid, pw):
             os.makedirs("debug", exist_ok=True)
-            page.screenshot(path="debug/login.png", full_page=True)
-            log("다우 로그인 실패 — debug/login.png 확인 (해외 IP 차단·2차 인증 여부)")
+            try:
+                page.screenshot(path="debug/login.png", full_page=True)
+            except Exception:
+                pass
+            # 원인 진단: 현재 주소·제목·화면 문구를 로그에 남긴다
+            try:
+                txt = page.evaluate("() => document.body ? document.body.innerText : ''")
+            except Exception:
+                txt = ""
+            log(f"  현재 주소: {page.url}")
+            log(f"  페이지 제목: {page.title()}")
+            lines = [l.strip() for l in txt.splitlines() if l.strip()]
+            log("  화면 문구: " + " | ".join(lines[:40])[:1500])
+            log("다우 로그인 실패 — 위 문구로 원인 확인 (해외 IP 차단·2차 인증·캡차 여부)")
             browser.close(); sys.exit(4)
 
         url = br._search_url("휴가 신청서")
