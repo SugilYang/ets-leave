@@ -24,7 +24,7 @@ from daou import DaouBrowser, parse_search, parse_leave, norm, FORM_LEAVE, REJEC
 
 SEEN_FILE = "seen_docs.json"
 SEARCH_DAYS = 30          # 최근 N일 기안분을 후보로 (이번 주 휴가가 미리 기안됐을 수 있음)
-WINDOW_FWD = 14           # 이번 주 월요일 ~ 2주 뒤 (지난 주는 건드리지 않음)
+WINDOW_FWD = 14           # 지난 주 월요일 ~ 2주 뒤 (결재 상신된 주는 GAS 가 건너뜀)
 MAX_PAGES = 5             # 검색 결과 100건 단위로 최대 N페이지
 KST = timezone(timedelta(hours=9))
 
@@ -209,7 +209,7 @@ def main():
     log(f"문서 열람 {opened}건 / 기억된 완료 문서 {len(seen)}건")
 
     # 날짜별로 풀기 (어제 ~ 2주 뒤, 평일만; 공휴일·중복·결재된 주는 GAS 가 거름)
-    lo, hi = today - timedelta(days=today.weekday()), today + timedelta(days=WINDOW_FWD)   # 이번 주 월요일부터
+    lo, hi = today - timedelta(days=today.weekday() + 7), today + timedelta(days=WINDOW_FWD)   # 지난 주 월요일부터
     items = []
     for rec in list(seen.values()) + new_recs:
         s, e = date.fromisoformat(rec["start"]), date.fromisoformat(rec["end"])
