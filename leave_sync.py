@@ -38,10 +38,12 @@ os.chdir(HERE)                       # seen_docs.json·debug 폴더를 스크립
 
 def load_dotenv():
     """같은 폴더의 .env (KEY=VALUE 한 줄씩) 를 환경변수로 올린다. 이미 있는 값은 덮지 않음"""
-    path = os.path.join(HERE, ".env")
-    if not os.path.exists(path):
+    path = next((os.path.join(HERE, n) for n in (".env", ".env.txt", "env.txt", "env")
+                 if os.path.exists(os.path.join(HERE, n))), None)
+    if not path:
+        print("설정 파일(.env)이 없습니다. .env.example 을 복사해 .env 로 만들고 값을 채우세요.", flush=True)
         return
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8-sig") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
