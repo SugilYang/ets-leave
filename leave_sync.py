@@ -56,8 +56,13 @@ def load_dotenv():
 load_dotenv()
 
 
+LOG_BUF = []               # 이번 실행 로그 (오류 시 관리자 알림에 첨부)
+
+
 def log(*a):
-    print(datetime.now(KST).strftime("%H:%M:%S"), *a, flush=True)
+    line = datetime.now(KST).strftime("%H:%M:%S") + " " + " ".join(str(x) for x in a)
+    LOG_BUF.append(line)
+    print(line, flush=True)
 
 
 def env(k):
@@ -235,13 +240,26 @@ RUN_AT = (6, 0)            # 매일 06:00
 LAST_FILE = "last_run.txt"
 
 
+def report_error(msg):
+    """오류를 GAS 로 보내 관리자에게 다우 알림 (실패해도 무시 — GAS 의 08시 감시가 잡음)"""
+    try:
+        gas(os.environ.get("GAS_URL", ""), os.environ.get("LEAVE_TOKEN", ""), "leaveError",
+            msg=msg, log="\n".join(LOG_BUF[-40:]))
+    except Exception as ex:
+        log(f"(오류 알림 전송 실패: {ex!r})")
+
+
 def run_once():
+    LOG_BUF.clear()
     try:
         main()
     except SystemExit as ex:
         log(f"(종료 코드 {ex.code}) 다음 실행 때 다시 시도합니다.")
+        if ex.code not in (0, None):
+            report_error(f"종료 코드 {ex.code}")
     except Exception as ex:
         log(f"오류: {ex!r} — 다음 실행 때 다시 시도합니다.")
+        report_error(repr(ex))
 
 
 def loop():
