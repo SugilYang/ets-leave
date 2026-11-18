@@ -131,7 +131,7 @@ def to_rec(row, html, checked):
     }
 
 
-SHOW = False              # python leave_sync.py show → 브라우저 화면을 보면서 1회 실행
+SHOW = os.environ.get("SHOW_BROWSER", "").strip() in ("1", "Y", "y", "true")   # .env 에 SHOW_BROWSER=1 이면 항상 화면 표시 / `python leave_sync.py show` 는 그 1회만
 FIND = ""                 # python leave_sync.py find 홍길동 → 그 사람 휴가신청서가 왜 반영/제외됐는지 로그
 
 
