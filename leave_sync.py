@@ -131,6 +131,7 @@ def to_rec(row, html, checked):
     }
 
 
+SHOW = False              # python leave_sync.py show → 브라우저 화면을 보면서 1회 실행
 FIND = ""                 # python leave_sync.py find 홍길동 → 그 사람 휴가신청서가 왜 반영/제외됐는지 로그
 
 
@@ -150,7 +151,7 @@ def main():
     new_recs, opened = [], 0
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=not SHOW, slow_mo=300 if SHOW else 0)
         page = browser.new_page(viewport={"width": 1400, "height": 900}, locale="ko-KR")
         br = DaouBrowser(page, base_url, today, log=log)
         if not br.login(uid, pw):
@@ -308,7 +309,9 @@ def loop():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 2 and sys.argv[1] == "find":
+    if len(sys.argv) > 1 and sys.argv[1] == "show":
+        SHOW = True; main()
+    elif len(sys.argv) > 2 and sys.argv[1] == "find":
         FIND = sys.argv[2]; run_once()
     elif len(sys.argv) > 1 and sys.argv[1] == "once":
         main()
