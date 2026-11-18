@@ -131,6 +131,9 @@ def to_rec(row, html, checked):
     }
 
 
+FIND = ""                 # python leave_sync.py find 홍길동 → 그 사람 휴가신청서가 왜 반영/제외됐는지 로그
+
+
 def main():
     base_url, uid, pw = env("DAOU_URL"), env("DAOU_ID"), env("DAOU_PW")
     gas_url, token = env("GAS_URL"), env("LEAVE_TOKEN")
@@ -184,6 +187,15 @@ def main():
                  and r["drafted"] and r["drafted"] >= since
                  and norm(r["drafter"]) in targets]
         log(f"검색 {len(rows)}건 → 최근 {SEARCH_DAYS}일 · 대상자 기안 휴가신청서 {len(cands)}건")
+        if FIND:
+            mine = [r for r in rows if norm(r["drafter"]) == norm(FIND)]
+            log(f"[찾기] {FIND} 기안 문서 {len(mine)}건 (검색 범위 {MAX_PAGES}페이지 안)" + ("" if norm(FIND) in targets else " — ※ 공수 대상자 명단에 없음"))
+            for r in mine:
+                why = ("양식 아님" if r["form_norm"] != FORM_LEAVE else
+                       "반려/취소" if any(k in r["status"] for k in REJECT_STATUS) else
+                       f"기안일 {SEARCH_DAYS}일 이전" if not (r["drafted"] and r["drafted"] >= since) else
+                       "이미 반영한 완료 문서" if r["doc_no"] and r["doc_no"] in seen else "후보")
+                log(f"  - {r['drafted']} {r['form']} [{r['status']}] {r['title'][:30]} {r['doc_no'] or '(번호없음)'} → {why}")
 
         for r in cands:
             if r["doc_no"] and r["doc_no"] in seen:
@@ -285,7 +297,9 @@ def loop():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "once":
+    if len(sys.argv) > 2 and sys.argv[1] == "find":
+        FIND = sys.argv[2]; run_once()
+    elif len(sys.argv) > 1 and sys.argv[1] == "once":
         main()
     else:
         loop()
