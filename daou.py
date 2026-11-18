@@ -412,6 +412,9 @@ class DaouBrowser:
         except Exception as ex:
             self.log(f"  [다우] 자동 로그인 실패: {ex}")
             return False
+        if "otpLogin" in self.page.url or "OTP" in (self.page.title() or ""):
+            self.log("  [다우] 로그인 실패 — OTP 인증 요구 (이 PC·계정이 OTP 예외로 등록돼 있지 않음)")
+            return False
         ok = "/login" not in self.page.url
         self.log(f"  [다우] 로그인 {'성공' if ok else '실패'}")
         return ok
