@@ -187,6 +187,19 @@ def main():
                  and r["drafted"] and r["drafted"] >= since
                  and norm(r["drafter"]) in targets]
         log(f"검색 {len(rows)}건 → 최근 {SEARCH_DAYS}일 · 대상자 기안 휴가신청서 {len(cands)}건")
+        if not rows:                                       # 검색이 비면 그 화면을 남겨 원인 확인 (debug/search.png·html)
+            os.makedirs("debug", exist_ok=True)
+            try:
+                page.screenshot(path="debug/search.png", full_page=True)
+                open("debug/search.html", "w", encoding="utf-8").write(page.content())
+            except Exception:
+                pass
+            try:
+                lines = [l.strip() for l in page.inner_text("body").splitlines() if l.strip()]
+                log(f"  검색 화면 주소: {page.url}")
+                log("  검색 화면 문구: " + " | ".join(lines[:30])[:1000])
+            except Exception:
+                pass
         if FIND:
             mine = [r for r in rows if norm(r["drafter"]) == norm(FIND)]
             log(f"[찾기] {FIND} 기안 문서 {len(mine)}건 (검색 범위 {MAX_PAGES}페이지 안)" + ("" if norm(FIND) in targets else " — ※ 공수 대상자 명단에 없음"))
