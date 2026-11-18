@@ -249,7 +249,6 @@ def main():
 
 
 RUN_AT = (6, 0)            # 매일 06:00
-LAST_FILE = "last_run.txt"
 
 
 def report_error(msg):
@@ -262,32 +261,31 @@ def report_error(msg):
 
 
 def run_once():
+    """1회 실행. 성공하면 True, 실패(로그인 실패·오류)면 관리자 알림 후 False"""
     LOG_BUF.clear()
     try:
-        main()
+        main(); return True
     except SystemExit as ex:
-        log(f"(종료 코드 {ex.code}) 다음 실행 때 다시 시도합니다.")
-        if ex.code not in (0, None):
-            report_error(f"종료 코드 {ex.code}")
+        if ex.code in (0, None):
+            return True
+        log(f"(종료 코드 {ex.code})"); report_error(f"종료 코드 {ex.code}"); return False
     except Exception as ex:
-        log(f"오류: {ex!r} — 다음 실행 때 다시 시도합니다.")
-        report_error(repr(ex))
+        log(f"오류: {ex!r}"); report_error(repr(ex)); return False
+
+
+RETRY_MIN = 30             # 실패하면 30분 뒤 다시 (최대 3회)
 
 
 def loop():
-    """창을 켜 두면 매일 06:00 에 실행. 켠 날 아직 안 돌았으면 바로 한 번 실행."""
+    """창을 켜면 바로 한 번 실행하고, 이후 매일 06:00 에 실행. 실패하면 30분 간격으로 3번까지 재시도."""
     import time
-    log("연차 자동반영 대기 중 — 이 창을 닫으면 멈춥니다. (매일 06:00 실행)")
+    log("연차 자동반영 — 지금 한 번 실행하고, 이후 매일 06:00 에 실행합니다. (이 창을 닫으면 멈춤)")
     while True:
-        today = datetime.now(KST).date().isoformat()
-        try:
-            last = open(LAST_FILE, encoding="utf-8").read().strip()
-        except Exception:
-            last = ""
-        if last != today:
-            run_once()
-            with open(LAST_FILE, "w", encoding="utf-8") as f:
-                f.write(today)
+        for i in range(1 + 3):
+            if run_once():
+                break
+            if i < 3:
+                log(f"{RETRY_MIN}분 뒤 다시 시도합니다. ({i + 1}/3)"); time.sleep(RETRY_MIN * 60)
         now = datetime.now(KST)
         nxt = now.replace(hour=RUN_AT[0], minute=RUN_AT[1], second=0, microsecond=0)
         if nxt <= now:
